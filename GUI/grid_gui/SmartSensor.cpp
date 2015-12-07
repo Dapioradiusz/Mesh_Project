@@ -5,11 +5,12 @@ SmartSensor::SmartSensor()
 {
 
 }
-SmartSensor::SmartSensor(const uint64_t id, const std::pair<double, double> &position,
-	const std::vector<std::pair<std::string, double> > &measurments) :
+SmartSensor::SmartSensor(uint64_t id, const std::pair<double, double> &positionGPS,
+	double range, const std::vector<std::pair<std::string, double> > &measurments) :
 	m_id(id),
-	m_position(position),
-	m_measurments(measurments)
+	m_positionGPS(positionGPS),
+	m_measurments(measurments),
+	m_range(range)
 {
 
 }
@@ -20,9 +21,13 @@ SmartSensor::~SmartSensor()
 }
 
 //setters
-void SmartSensor::setSensorPosition(double latitude, double longitude)
+void SmartSensor::setSensorPositionXY(double pos1, double pos2)
 {
-	m_position = std::make_pair(latitude, longitude);
+	m_positionXY = std::make_pair(pos1, pos2);
+}
+void SmartSensor::setSensorPositionGPS(const std::pair<double, double> &pos)
+{
+	m_positionGPS = pos;
 }
 
 void SmartSensor::setSensorId(uint64_t id)
@@ -30,22 +35,37 @@ void SmartSensor::setSensorId(uint64_t id)
 	m_id = id;
 }
 
-std::pair<double, double> SmartSensor::getPosition()const
+void SmartSensor::setSensorRadius(double radius)
 {
-	return m_position;
+	m_range = radius;
+}
+
+std::pair<double, double> SmartSensor::getPositionGPS()const
+{
+	return m_positionGPS;
+}
+
+std::pair<double, double> SmartSensor::getPositionXY()const
+{
+	return m_positionXY;
 }
 
 double SmartSensor::getPositionLong()const
 {
-	return m_position.first;
+	return m_positionGPS.first;
 }
 
 double SmartSensor::getPositionLat()const
 {
-	return m_position.second;
+	return m_positionGPS.second;
 }
 
 uint64_t SmartSensor::getId()const
 {
 	return m_id;
+}
+
+double SmartSensor::getRange()const
+{
+	return m_range;
 }
