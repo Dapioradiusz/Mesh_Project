@@ -23,8 +23,10 @@ private:
 	double angleToRadian(double angle);
 	void anglePositionToMeters(std::vector<SmartSensor> &SensorList, const std::pair<double, double> &coorStart, bool flip);
 	double longLatToDist(double lat1, double lat2, double long1, double long2);
-	void drawSensor(const SmartSensor &sensor, Mat &map);
+	
+	double getScale(double axisMax, double imgSize);
 
+	void drawSensor(const SmartSensor &sensor, Mat &map);
 };
 
 #endif // SENSORMAP_H

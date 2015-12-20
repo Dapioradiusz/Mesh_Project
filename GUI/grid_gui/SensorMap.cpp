@@ -16,6 +16,15 @@ SensorMap::~SensorMap()
 {
 
 }
+double SensorMap::getScale(double axisMax, double imgSize)
+{
+	double scale = axisMax / imgSize;
+	if (axisMax  > imgSize)
+	{
+		scale = 1 / scale;
+	}
+	return scale;
+}
 
 Mat SensorMap::getMap(std::vector<SmartSensor> &SensorList)
 {
@@ -34,20 +43,17 @@ Mat SensorMap::getMap(std::vector<SmartSensor> &SensorList)
 		flip = true;
 	}
 
-	anglePositionToMeters(SensorList, coorTab[0], flip);
 	//get the maxX maxY in meters
+	anglePositionToMeters(SensorList, coorTab[0], flip);
 	
-	//set the start and end of the map rectangle in meters
-
-
 	//sensor map c.d - desingn map - image size in pixels based on maxX, maxY, number and position of Sensors and their range
 	// picturebox size is 490 x 320 (width(horizontal), length(vertical)) - this should be minimal size of image
-	Mat matImage = Mat::zeros(480, 735, CV_8UC3); //  rows-length cols -width format
-	bool isTransposed = false;
+	Mat map = Mat::zeros(480, 735, CV_8UC3); //  rows-length cols -width format
 
 	//now scale the coordinates
-	double scaleX = maxX / matImage.cols;
-	double scaleY = maxY / matImage.rows;
+	double scaleX = getScale(maxX, map.cols);
+	double scaleY = getScale(maxY, map.rows);
+
 	coorTab[0] = std::make_pair(0, 0);
 	coorTab[1] = std::make_pair(maxX * scaleX, maxY * scaleY);
 
@@ -56,18 +62,9 @@ Mat SensorMap::getMap(std::vector<SmartSensor> &SensorList)
 		sensorItr->setSensorPositionXY(sensorItr->getPositionXY().first * scaleX, 
 									   sensorItr->getPositionXY().second * scaleY);
 		//now draw stuff on the image - circle and text
-		Point sensorLocation(sensorItr->getPositionXY().first, sensorItr->getPositionXY().second);
-		std::stringstream sensorText;
-		sensorText << "Sensor ID : " << sensorItr->getId();
-		int fontFace = CV_FONT_HERSHEY_PLAIN;
-		double fontScale = 1.2;
-		int thickness = 1;
-		circle(matImage, sensorLocation, 5 , Scalar(255,0,0), 3, 8);
-		putText(matImage, sensorText.str(), sensorLocation, fontFace, fontScale,
-				Scalar::all(255), thickness, 8);
-		
+		drawSensor(*sensorItr, map);
 	}
-	return matImage;
+	return map;
 }
 
 void SensorMap::findMinMaxCordinates(const std::vector<SmartSensor> &SensorList, std::pair<double, double>* coordTab)
@@ -151,5 +148,14 @@ double SensorMap::longLatToDist(double lat1, double lat2, double long1, double l
 
 void SensorMap::drawSensor(const SmartSensor &sensor, Mat &map)
 {
+	Point sensorLocation(sensor.getPositionXY().first, sensor.getPositionXY().second);
+	std::stringstream sensorText;
+	sensorText << "Sensor ID : " << sensor.getId();
+	int fontFace = CV_FONT_HERSHEY_PLAIN;
+	double fontScale = 1.2;
+	int thickness = 1;
 
+	circle(map, sensorLocation, 5, Scalar(255, 0, 0), 3, 8);
+	putText(map, sensorText.str(), sensorLocation, fontFace, fontScale,
+			Scalar::all(255), thickness, 8);
 }
