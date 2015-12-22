@@ -1,5 +1,7 @@
 #include "GridGui.h"
 #include <stdlib.h>
+#include <fstream>
+#include <msclr\marshal_cppstd.h>
 
 using namespace System;
 using namespace System::Windows::Forms;
@@ -76,6 +78,7 @@ void grid_gui::GridGui::InitializeComponent()
 	this->cbSensorParamsList->Name = L"cbSensorParamsList";
 	this->cbSensorParamsList->Size = System::Drawing::Size(180, 21);
 	this->cbSensorParamsList->TabIndex = 2;
+	this->cbSensorParamsList->SelectedIndexChanged += gcnew System::EventHandler(this, &GridGui::cbSensorParamsList_SelectedIndexChanged);
 	// 
 	// btnConnect
 	// 
@@ -149,9 +152,9 @@ void grid_gui::GridGui::InitializeComponent()
 	this->txSensorInfo->Multiline = true;
 	this->txSensorInfo->Name = L"txSensorInfo";
 	this->txSensorInfo->ReadOnly = true;
+	this->txSensorInfo->ScrollBars = System::Windows::Forms::ScrollBars::Vertical;
 	this->txSensorInfo->Size = System::Drawing::Size(197, 123);
 	this->txSensorInfo->TabIndex = 10;
-	this->txSensorInfo->Visible = false;
 	// 
 	// btnSensorMode
 	// 
@@ -242,15 +245,34 @@ System::Void grid_gui::GridGui::btnAddSensor_Click(System::Object^  sender, Syst
 	dialog::SensorDialog ^sensorCreator = gcnew dialog::SensorDialog(&sensorIds, sensors);
 	sensorCreator->ShowDialog();
 	this->Show();
+	uint8_t i = 0;
 	if (!sensorIds.empty())
 	{
-		for (std::vector<uint64_t>::const_iterator itr = sensorIds.begin(); itr != sensorIds.end(); itr++)
+		for (std::vector<uint64_t>::const_iterator itr = sensorIds.begin(); itr != sensorIds.end(); itr++, i++)
 		{
-			this->cbSensorParamsList->Items->Add("Sensor" + Convert::ToString(*itr));
+			this->cbSensorParamsList->Items->Add("Sensor " + i);
 		}
-		//redraw the map - 
+		//redraw the map
+		drawMap();
 	}
 
+}
+
+System::Void grid_gui::GridGui::cbSensorParamsList_SelectedIndexChanged(System::Object^  sender, System::EventArgs^  e)
+{
+	uint8_t sensorNr = this->cbSensorParamsList->SelectedIndex; // change not working	
+	txSensorInfo->Text = "Sensor ID: " + (*sensors)[sensorNr].getId() + "\r\n"
+						+ "Latitude: " + (*sensors)[sensorNr].getPositionLat() + "\r\n"
+						+ "Longitude: " + (*sensors)[sensorNr].getPositionLong() + "\r\n";
+	if (!(*sensors)[sensorNr].m_measurments.empty())
+	{
+		for (std::vector<std::pair<std::string, double> >::const_iterator itr = (*sensors)[sensorNr].m_measurments.begin();
+			itr != (*sensors)[sensorNr].m_measurments.end(); itr++)
+		{
+			System::String ^meas_name = gcnew System::String(itr->first.c_str());
+			txSensorInfo->AppendText(meas_name + " = " + itr->second + "\r\n");
+		}		
+	}
 }
 
 bool grid_gui::GridGui::getAvailableNetworks()
@@ -268,30 +290,24 @@ void grid_gui::GridGui::produceAllow(bool allow)
 	this->btnSendData->Enabled = allow;
 }
 
-void grid_gui::GridGui::onReceivedData(std::istringstream &frameData)
+void grid_gui::GridGui::onReceivedData(System::String ^frameData)
 {
-	//reads frameData content to 
-	frameData.seekg(0, frameData.end);
-	size_t length = frameData.tellg();
-	frameData.seekg(0, frameData.beg);
-
-	// allocate memory:
-	char *buffer = new char[length];
-
-	// read data as a block:
-	frameData.read(buffer, length);
-	System::String ^data = gcnew System::String(buffer);
-	this->txLog->AppendText("Received data : " + data + "\n");
+	//reads frameData content to
+	std::string frame_buffer = msclr::interop::marshal_as<std::string>(frameData);
+	
+	this->txLog->AppendText("Received data : " + frameData + "\n");
 	
 	//test for logging sensors and drawing map
 	//add new measurments to sensors based on the data frame
-	if (actualizeSensorData(frameData))
+	std::stringstream frame;
+	frame << frame_buffer;
+	if (actualizeSensorData(frame))
 	{
 		//actualize sensor  map
 		drawMap();
+		//save new sensor data in some kin of database - in future
 	}
 	
-	delete buffer;
 }
 
 void grid_gui::GridGui::onDataSend(System::String ^data)
@@ -329,8 +345,19 @@ System::Void grid_gui::GridGui::xbeeBackGroundWorker_DoWork(System::Object^  sen
 		//if received new frame invoke the onReceivedData() function
 		//for now read the test_frame.xml file to test the data actualization and map drawing
 		//read file to isstringstream
-		this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), "xbee data"); // just testing
+		std::ifstream frame_file("test_frame.xml", std::ios::ate);
+		if (frame_file.is_open())
+		{	
+			size_t size = frame_file.tellg();
+			char *file_buffer = new char[size];
+			frame_file.seekg(0, std::ios::beg);
+			frame_file.read(file_buffer, size);
+			frame_file.close();
 
+			System::String ^frame = gcnew System::String(file_buffer);
+			this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), frame); // just testing
+			delete file_buffer;
+		}
 		Thread::Sleep(500);
 	}
 }
@@ -362,25 +389,27 @@ System::Drawing::Bitmap^ grid_gui::GridGui::MatToBitmap(const cv::Mat& img)
 	return bmpimg;
 }
 
-bool grid_gui::GridGui::actualizeSensorData(std::istringstream &frameData)
+bool grid_gui::GridGui::actualizeSensorData(std::stringstream &frameData)
 {
 	//later wil use a proper xml processing library - for now only basic stuff for testing
 	bool updatedSensors = false;
+	size_t sensorNr;
 	for (std::string line; std::getline(frameData, line);)
 	{
-		if (line == "<sensor>")
+		if (line.find("<sensor>") != std::string::npos)
 		{
 			//extract id
 			std::getline(frameData, line);  //gets <id>...</id>
 			uint64_t frame_id = atoi(extractTagMember(line).c_str());
-			//look if this sensor is in sensors list
-			size_t sensorNr = findSensorByID(frame_id);
-			if (sensorNr >= 0)
+			//look if this sensor is in sensors list				
+			if (findSensorByID(frame_id, sensorNr))
 			{
 				std::getline(frameData, line);
-				while (line != "</sensor>")
+				//here if new measurments data send clear old data - make sure it is saved
+				(*sensors)[sensorNr].m_measurments.clear();
+				while (line.find("</sensor>") == std::string::npos)
 				{
-					if (line == "<measurment>")
+					if (line.find("<measurment>") != std::string::npos)
 					{
 						std::getline(frameData, line); // gets <name>...</name>	
 						std::string meas_name = extractTagMember(line);
@@ -394,21 +423,22 @@ bool grid_gui::GridGui::actualizeSensorData(std::istringstream &frameData)
 				}
 			}
 		}
+
 	}
 	return updatedSensors;
 }
 
-size_t grid_gui::GridGui::findSensorByID(uint64_t id)
+bool grid_gui::GridGui::findSensorByID(uint64_t id, size_t sensorNr)
 {
-	size_t sensorNr = 0;
+	sensorNr = 0;
 	for (std::vector<SmartSensor>::const_iterator itr = sensors->begin(); itr != sensors->end(); itr++, sensorNr++)
 	{
 		if (itr->getId() == id)
 		{
-			return sensorNr;
+			return true;
 		}
 	}
-	return -1;
+	return false;
 }
 
 std::string grid_gui::GridGui::extractTagMember(const std::string &line)

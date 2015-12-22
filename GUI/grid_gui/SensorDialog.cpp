@@ -1,4 +1,5 @@
 #include "SensorDialog.h"
+#include <msclr\marshal_cppstd.h>
 
 dialog::SensorDialog::SensorDialog()
 {
@@ -143,13 +144,9 @@ void dialog::SensorDialog::InitializeComponent(void)
 
 System::Void dialog::SensorDialog::btnAddSensor_Click(System::Object^  sender, System::EventArgs^  e)
 {
+	
+	//add precaution for "." instead of "," in floating numbers - if there is a "." in text, change it to ","
 	std::vector<std::pair<std::string, double> > meas;
-
-	uint64_t id = Convert::ToUInt64(txSensorId->Text);
-	double lat = Convert::ToDouble(txPosLat->Text);
-	double lng = Convert::ToDouble(txPosLong->Text);
-	double range = Convert::ToDouble(txRange->Text);
-
 	SmartSensor sensor(Convert::ToUInt64(txSensorId->Text),
 		std::make_pair(Convert::ToDouble(txPosLat->Text),
 		Convert::ToDouble(txPosLong->Text)),

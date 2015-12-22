@@ -80,13 +80,14 @@ namespace grid_gui {
 		
 		System::Void btnConnect_Click(System::Object^  sender, System::EventArgs^  e);
 		System::Void btnSendData_Click(System::Object^  sender, System::EventArgs^  e);
-
 		System::Void btnAddSensor_Click(System::Object^  sender, System::EventArgs^  e);
+
+		System::Void cbSensorParamsList_SelectedIndexChanged(System::Object^  sender, System::EventArgs^  e);
 
 		bool getAvailableNetworks();
 
 		void produceAllow(bool allow);
-		void onReceivedData(std::istringstream &frameData);
+		void onReceivedData(System::String ^frameData);
 		void onDataSend(System::String ^data);
 
 		System::Void xbeeBackGroundWorker_DoWork(System::Object^  sender, 
@@ -94,11 +95,13 @@ namespace grid_gui {
 
 		System::Drawing::Bitmap^ MatToBitmap(const cv::Mat& img);
 		
-		bool actualizeSensorData(std::istringstream &frameData);
-		size_t findSensorByID(uint64_t id);
+		bool actualizeSensorData(std::stringstream &frameData);
+		bool findSensorByID(uint64_t id, size_t sensorNr);
 		std::string extractTagMember(const std::string &line);
 		
 		void drawMap();
-};
+		
+	
+	};
 
 }
