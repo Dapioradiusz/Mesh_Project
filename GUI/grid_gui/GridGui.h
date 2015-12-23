@@ -96,7 +96,7 @@ namespace grid_gui {
 		System::Drawing::Bitmap^ MatToBitmap(const cv::Mat& img);
 		
 		bool actualizeSensorData(std::stringstream &frameData);
-		bool findSensorByID(uint64_t id, size_t sensorNr);
+		bool findSensorByID(uint64_t id, size_t &sensorNr);
 		std::string extractTagMember(const std::string &line);
 		
 		void drawMap();

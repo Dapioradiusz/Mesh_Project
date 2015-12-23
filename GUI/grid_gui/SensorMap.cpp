@@ -102,8 +102,8 @@ void SensorMap::findMinMaxCordinates(const std::vector<SmartSensor> &SensorList,
 	minLat -= borderLat;
 	maxLat += borderLat;
 
-	coordTab[0] = std::make_pair(minLat, minLong);
-	coordTab[1] = std::make_pair(maxLat, maxLong);
+	coordTab[0] = std::make_pair(maxLat, minLong);
+	coordTab[1] = std::make_pair(minLat, maxLong);
 }
 
 double SensorMap::angleToRadian(double angle)

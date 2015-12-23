@@ -248,7 +248,8 @@ System::Void grid_gui::GridGui::btnAddSensor_Click(System::Object^  sender, Syst
 	uint8_t i = 0;
 	if (!sensorIds.empty())
 	{
-		for (std::vector<uint64_t>::const_iterator itr = sensorIds.begin(); itr != sensorIds.end(); itr++, i++)
+		this->cbSensorParamsList->Items->Clear(); // if added some new sensors then repopulate the combobox
+		for (std::vector<SmartSensor>::const_iterator itr = sensors->begin(); itr != sensors->end(); itr++, i++)
 		{
 			this->cbSensorParamsList->Items->Add("Sensor " + i);
 		}
@@ -428,12 +429,13 @@ bool grid_gui::GridGui::actualizeSensorData(std::stringstream &frameData)
 	return updatedSensors;
 }
 
-bool grid_gui::GridGui::findSensorByID(uint64_t id, size_t sensorNr)
+bool grid_gui::GridGui::findSensorByID(uint64_t id, size_t &sensorNr)
 {
 	sensorNr = 0;
 	for (std::vector<SmartSensor>::const_iterator itr = sensors->begin(); itr != sensors->end(); itr++, sensorNr++)
 	{
-		if (itr->getId() == id)
+		uint64_t _id = itr->getId();
+		if (_id == id)
 		{
 			return true;
 		}

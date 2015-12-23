@@ -52,12 +52,12 @@ std::pair<double, double> SmartSensor::getPositionXY()const
 
 double SmartSensor::getPositionLong()const
 {
-	return m_positionGPS.first;
+	return m_positionGPS.second;
 }
 
 double SmartSensor::getPositionLat()const
 {
-	return m_positionGPS.second;
+	return m_positionGPS.first;
 }
 
 uint64_t SmartSensor::getId()const
