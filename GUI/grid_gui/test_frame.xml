@@ -1,5 +1,5 @@
 <Data_Frame>
-	<sender id = 1>
+	<sender_id>1</sender_id>
 	<path>3-4-2-1</path>
 	<sensor_data>
 		<sensor>
@@ -48,3 +48,4 @@
 		</sensor>
 	</sensor_data>
 </Data_Frame>
+

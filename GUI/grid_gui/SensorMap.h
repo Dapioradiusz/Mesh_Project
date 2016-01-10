@@ -21,7 +21,10 @@ private:
 	void findMinMaxCordinates(const std::vector<SmartSensor> &SensorList, std::pair<double, double>* coordTab);
 
 	double angleToRadian(double angle);
-	void anglePositionToMeters(std::vector<SmartSensor> &SensorList, const std::pair<double, double> &coorStart, bool flip);
+	void anglePositionToMeters(std::vector<SmartSensor> &SensorList, 
+							  const std::pair<double, double> &coorStart, 
+							  bool flip, double maxX, double Y);
+
 	double longLatToDist(double lat1, double lat2, double long1, double long2);
 	
 	double getScale(double axisMax, double imgSize);

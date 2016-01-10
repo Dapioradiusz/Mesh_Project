@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <fstream>
 #include <msclr\marshal_cppstd.h>
+#include <sstream>
 
 using namespace System;
 using namespace System::Windows::Forms;
@@ -453,10 +454,23 @@ std::string grid_gui::GridGui::extractTagMember(const std::string &line)
 void grid_gui::GridGui::drawMap()
 {
 	SensorMap map;
-	Mat matImage = map.getMap(*sensors);
+	cv::Mat matImage = map.getMap(*sensors);
 	Bitmap^ btMap = MatToBitmap(matImage);
 	pbSensorMap->BackgroundImage = btMap;
 	pbSensorMap->BackgroundImageLayout = ImageLayout::Stretch;
+	
+	std::ofstream log;
+	log.open("log.txt");
+	for (std::vector<SmartSensor>::const_iterator itr = sensors->begin(); itr != sensors->end(); itr++)
+	{
+		uint64_t _id = itr->getId();
+		log << "\nSensor " << itr->getId();
+		log << "\nPositionX " << itr->getPositionXY().first;
+		log << "\nPositionY " << itr->getPositionXY().second;
+		
+	}
+	log << "\nMat size = " << matImage.rows << " X " << matImage.cols;
+	log.close();
 }
 
 [STAThread]

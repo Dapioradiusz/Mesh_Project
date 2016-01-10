@@ -2,6 +2,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <sstream> 
+#include <string>
 
 const double Lat_100m = 0.000899;
 const double Long_100m = 0.001244;
@@ -44,15 +45,15 @@ Mat SensorMap::getMap(std::vector<SmartSensor> &SensorList)
 	}
 
 	//get the maxX maxY in meters
-	anglePositionToMeters(SensorList, coorTab[0], flip);
+	anglePositionToMeters(SensorList, coorTab[0], flip, maxX, maxY);
 	
 	//sensor map c.d - desingn map - image size in pixels based on maxX, maxY, number and position of Sensors and their range
 	// picturebox size is 490 x 320 (width(horizontal), length(vertical)) - this should be minimal size of image
 	Mat map = Mat::zeros(480, 735, CV_8UC3); //  rows-length cols -width format
 
-	//now scale the coordinates
 	double scaleX = getScale(maxX, map.cols);
 	double scaleY = getScale(maxY, map.rows);
+	
 
 	coorTab[0] = std::make_pair(0, 0);
 	coorTab[1] = std::make_pair(maxX * scaleX, maxY * scaleY);
@@ -94,14 +95,36 @@ void SensorMap::findMinMaxCordinates(const std::vector<SmartSensor> &SensorList,
 			maxLong = currLong;
 		}
 	}
-	// add border - 100 m - 0.001244 - longitude 0.000899 latidute
-	double borderLong = 2 * Long_100m; // 200m
-	double borderLat = 2 * Lat_100m;
-	minLong -= borderLong;
-	maxLong += borderLong;
-	minLat -= borderLat;
-	maxLat += borderLat;
-
+	// add border - 100 m - 0.001244 - longitude; 0.000899 - latidute
+	double scaleLong = (maxLong - minLong) / (10 * Long_100m);
+	double scaleLat = (maxLat - minLat) / (10 * Lat_100m);
+	double borderLong = 2 * scaleLong * Long_100m; // 200m for every 1km
+	double borderLat = 2 * scaleLat * Lat_100m;// 200m for every 1km
+	double scaleLatLong = (longLatToDist(maxLat, minLat, minLong, minLong)) / (longLatToDist(minLat, minLat, maxLong, minLong));
+	double border2 = 0;
+	if (scaleLatLong > 2)
+	{
+		border2 = (scaleLatLong / 10) * (3 * (maxLong - minLong));
+		minLong -= border2;
+		maxLong += border2;
+		minLat -= borderLat;
+		maxLat += borderLat;
+	}
+	else if (scaleLatLong < 0.5)
+	{
+		border2 = (scaleLatLong / 10)  * (3 * (maxLat - minLat));
+		minLong -= borderLong;
+		maxLong += borderLong;
+		minLat -= border2;
+		maxLat += border2;
+	}
+	else
+	{
+		minLong -= borderLong;
+		maxLong += borderLong;
+		minLat -= borderLat;
+		maxLat += borderLat;
+	}
 	coordTab[0] = std::make_pair(maxLat, minLong);
 	coordTab[1] = std::make_pair(minLat, maxLong);
 }
@@ -111,23 +134,28 @@ double SensorMap::angleToRadian(double angle)
 	return (angle*M_PI)/180;
 }
 
-void SensorMap::anglePositionToMeters(std::vector<SmartSensor> &SensorList, const std::pair<double, double> &coorStart, bool flip)
+void SensorMap::anglePositionToMeters(std::vector<SmartSensor> &SensorList, 
+									  const std::pair<double, double> &coorStart, 
+									  bool flip, double maxX, double maxY)
 {
+	double distanceX, distanceY;
 	for (std::vector<SmartSensor>::iterator sensorItr = SensorList.begin(); sensorItr != SensorList.end(); sensorItr++)
 	{
 		//change
-		double distanceX = longLatToDist(coorStart.first, coorStart.first,
-										 coorStart.second, sensorItr->getPositionGPS().second);
-		double distanceY = longLatToDist(coorStart.first, sensorItr->getPositionGPS().first, 
-										 coorStart.second, coorStart.second);
+		distanceX = longLatToDist(coorStart.first, coorStart.first,
+			coorStart.second, sensorItr->getPositionGPS().second);
+		distanceY = longLatToDist(coorStart.first, sensorItr->getPositionGPS().first,
+			coorStart.second, coorStart.second);
 		if (flip)
 		{
-			sensorItr->setSensorPositionXY(distanceX, distanceY);
+			distanceX = maxY - distanceX;
+			sensorItr->setSensorPositionXY(distanceY, distanceX);
 		}
 		else
 		{
-			sensorItr->setSensorPositionXY(distanceY, distanceX);
-		}		
+			sensorItr->setSensorPositionXY(distanceX, distanceY);
+		}
+		
 	}
 }
 
@@ -149,13 +177,20 @@ double SensorMap::longLatToDist(double lat1, double lat2, double long1, double l
 void SensorMap::drawSensor(const SmartSensor &sensor, Mat &map)
 {
 	Point sensorLocation(sensor.getPositionXY().first, sensor.getPositionXY().second);
-	std::stringstream sensorText;
-	sensorText << "Sensor ID : " << sensor.getId();
+	std::stringstream sText;
+	sText << "Sensor ID : " << sensor.getId();
+
+	circle(map, sensorLocation, 5, Scalar(255, 0, 0), 3, 8);
 	int fontFace = CV_FONT_HERSHEY_PLAIN;
 	double fontScale = 1.2;
 	int thickness = 1;
 
-	circle(map, sensorLocation, 5, Scalar(255, 0, 0), 3, 8);
-	putText(map, sensorText.str(), sensorLocation, fontFace, fontScale,
-			Scalar::all(255), thickness, 8);
+	putText(map, sText.str(), sensorLocation, fontFace, fontScale,
+		Scalar::all(255), thickness, 8);
+	/*CvFont font;
+	cvInitFont(&font, CV_FONT_HERSHEY_SIMPLEX, 0.6, 0.6);
+	IplImage *tmp = cvCloneImage(&(IplImage)map);
+	cvPutText(tmp, sText.str().c_str(), cvPoint(sensor.getPositionXY().first, 
+			  sensor.getPositionXY().second), &font, cvScalar(255, 255, 255));
+	map = cv::cvarrToMat(tmp);*/
 }
