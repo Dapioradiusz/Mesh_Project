@@ -3,12 +3,15 @@
 #include <fstream>
 #include <msclr\marshal_cppstd.h>
 
+
+
 using namespace System;
 using namespace System::Windows::Forms;
+using namespace System::IO::Ports;
 
 grid_gui::GridGui::GridGui() :
-	xbeeThreadStarted(false),
-	allowDataSend(false)
+xbeeThreadStarted(false),
+allowDataSend(false)
 {
 	InitializeComponent();
 
@@ -21,6 +24,13 @@ grid_gui::GridGui::GridGui() :
 	//initialize picture box 
 	pbSensorMap->Size = System::Drawing::Size(490, 320);
 	pbSensorMap->BackgroundImageLayout = ImageLayout::Stretch;
+
+
+	// COM port initialization
+	port = gcnew SerialPort("COM1");
+	port->ReadTimeout = 500;
+	port->WriteTimeout - 500;
+
 }
 
 grid_gui::GridGui::~GridGui()
@@ -30,6 +40,8 @@ grid_gui::GridGui::~GridGui()
 		delete components;
 	}
 }
+
+
 
 void grid_gui::GridGui::InitializeComponent()
 {
@@ -188,7 +200,7 @@ void grid_gui::GridGui::InitializeComponent()
 	// 
 	this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 	this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-	this->ClientSize = System::Drawing::Size(1428, 861);
+	this->ClientSize = System::Drawing::Size(1362, 742);
 	this->Controls->Add(this->btnAddSensor);
 	this->Controls->Add(this->btnRequestMeasure);
 	this->Controls->Add(this->btnSensorMode);
@@ -262,8 +274,8 @@ System::Void grid_gui::GridGui::cbSensorParamsList_SelectedIndexChanged(System::
 {
 	uint8_t sensorNr = this->cbSensorParamsList->SelectedIndex; // change not working	
 	txSensorInfo->Text = "Sensor ID: " + (*sensors)[sensorNr].getId() + "\r\n"
-						+ "Latitude: " + (*sensors)[sensorNr].getPositionLat() + "\r\n"
-						+ "Longitude: " + (*sensors)[sensorNr].getPositionLong() + "\r\n";
+		+ "Latitude: " + (*sensors)[sensorNr].getPositionLat() + "\r\n"
+		+ "Longitude: " + (*sensors)[sensorNr].getPositionLong() + "\r\n";
 	if (!(*sensors)[sensorNr].m_measurments.empty())
 	{
 		for (std::vector<std::pair<std::string, double> >::const_iterator itr = (*sensors)[sensorNr].m_measurments.begin();
@@ -271,7 +283,7 @@ System::Void grid_gui::GridGui::cbSensorParamsList_SelectedIndexChanged(System::
 		{
 			System::String ^meas_name = gcnew System::String(itr->first.c_str());
 			txSensorInfo->AppendText(meas_name + " = " + itr->second + "\r\n");
-		}		
+		}
 	}
 }
 
@@ -294,9 +306,9 @@ void grid_gui::GridGui::onReceivedData(System::String ^frameData)
 {
 	//reads frameData content to
 	std::string frame_buffer = msclr::interop::marshal_as<std::string>(frameData);
-	
+
 	this->txLog->AppendText("Received data : " + frameData + "\n");
-	
+
 	//test for logging sensors and drawing map
 	//add new measurments to sensors based on the data frame
 	std::stringstream frame;
@@ -307,7 +319,7 @@ void grid_gui::GridGui::onReceivedData(System::String ^frameData)
 		drawMap();
 		//save new sensor data in some kin of database - in future
 	}
-	
+
 }
 
 void grid_gui::GridGui::onDataSend(System::String ^data)
@@ -317,6 +329,8 @@ void grid_gui::GridGui::onDataSend(System::String ^data)
 
 System::Void grid_gui::GridGui::xbeeBackGroundWorker_DoWork(System::Object^  sender, System::ComponentModel::DoWorkEventArgs^  e)
 {
+	port->Open();
+
 	while (true)
 	{
 		//check if thread cancelled
@@ -345,19 +359,27 @@ System::Void grid_gui::GridGui::xbeeBackGroundWorker_DoWork(System::Object^  sen
 		//if received new frame invoke the onReceivedData() function
 		//for now read the test_frame.xml file to test the data actualization and map drawing
 		//read file to isstringstream
-		std::ifstream frame_file("test_frame.xml", std::ios::ate);
-		if (frame_file.is_open())
-		{	
-			size_t size = frame_file.tellg();
-			char *file_buffer = new char[size];
-			frame_file.seekg(0, std::ios::beg);
-			frame_file.read(file_buffer, size);
-			frame_file.close();
-
-			System::String ^frame = gcnew System::String(file_buffer);
-			this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), frame); // just testing
-			delete file_buffer;
+		
+		if (port->ReadLine() != "")
+		{
+			System::String^ receivedData = port->ReadExisting();
+			this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), receivedData);
 		}
+
+		//std::ifstream frame_file("test_frame.xml", std::ios::ate);
+		//if (frame_file.is_open())
+		//{
+		//	size_t size = frame_file.tellg();
+		//	char *file_buffer = new char[size];
+		//	frame_file.seekg(0, std::ios::beg);
+		//	frame_file.read(file_buffer, size);
+		//	frame_file.close();
+
+		//	System::String ^frame = gcnew System::String(file_buffer);
+		//	this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), frame); // just testing
+		//	delete file_buffer;
+		//}
+
 		Thread::Sleep(500);
 	}
 }
@@ -456,6 +478,8 @@ void grid_gui::GridGui::drawMap()
 	pbSensorMap->BackgroundImage = btMap;
 	pbSensorMap->BackgroundImageLayout = ImageLayout::Stretch;
 }
+
+
 
 [STAThread]
 void Main(array<System::String^>^ args)

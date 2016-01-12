@@ -19,7 +19,7 @@ namespace dialog {
 	private:
 		std::vector<SmartSensor> *m_Sensors;
 		std::vector<uint64_t> *m_sensorIds;
-		
+
 		//ui controls
 		System::Windows::Forms::Label^  label1;
 		System::Windows::Forms::Label^  label2;
@@ -36,7 +36,7 @@ namespace dialog {
 
 	public:
 		SensorDialog();
-		
+
 		SensorDialog(std::vector<uint64_t> *sensorIds, std::vector<SmartSensor> *Sensors);
 
 	protected:
@@ -57,10 +57,12 @@ namespace dialog {
 		/// </summary>
 		void InitializeComponent();
 #pragma endregion
-	
+
 		System::Void btnAddSensor_Click(System::Object^  sender, System::EventArgs^  e);
 		System::Void btnCancel_Click(System::Object^  sender, System::EventArgs^  e);
 
 		bool checkIfDuplicate(const SmartSensor &sensor);
-};
+	
+	
+	};
 }

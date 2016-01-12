@@ -17,6 +17,7 @@ namespace grid_gui {
 	using namespace System::Drawing::Imaging;
 	using namespace System::Threading; // for working with threads
 	using namespace cv;
+	using namespace System::IO::Ports;
 
 	/// <summary>
 	/// Summary for GridGui
@@ -25,6 +26,8 @@ namespace grid_gui {
 	delegate void dataSendDelegate(System::String ^data);
 	delegate void receivedDataDelegate(System::String ^data);
 	delegate void addedSensor(uint64_t id);
+	delegate void COM_delegate();
+	
 
 	const uint8_t MAX_BUFFER_SIZE = 100;
 
@@ -35,6 +38,8 @@ namespace grid_gui {
 		bool allowDataSend;
 		std::vector<std::string> *dataToSend; //later replaced by vector of frames
 		std::vector<SmartSensor> *sensors;
+		SerialPort^ port;
+
 
 		//ui controls
 		System::Windows::Forms::Label^  label1;
@@ -44,11 +49,11 @@ namespace grid_gui {
 
 		System::Windows::Forms::TextBox^  txLog;
 		System::Windows::Forms::TextBox^  txSensorInfo;
-		
-		System::Windows::Forms::Button^  btnSendData;		
+
+		System::Windows::Forms::Button^  btnSendData;
 		System::Windows::Forms::Button^  btnSensorMode;
 		System::Windows::Forms::Button^  btnConnect;
-	    System::Windows::Forms::Button^  btnRequestMeasure;
+		System::Windows::Forms::Button^  btnRequestMeasure;
 
 		System::Windows::Forms::Button^  btnAddSensor;
 
@@ -57,13 +62,14 @@ namespace grid_gui {
 
 		System::Windows::Forms::PictureBox^  pbSensorMap;
 
+
 		System::ComponentModel::BackgroundWorker^  xbeeBackGroundWorker;
-		
+
 	public:
 		GridGui();
 	protected:
 		~GridGui();
-	
+
 	private:
 		/// <summary>
 		/// Required designer variable.
@@ -77,7 +83,7 @@ namespace grid_gui {
 		/// </summary>
 	private:
 		void InitializeComponent();
-		
+
 		System::Void btnConnect_Click(System::Object^  sender, System::EventArgs^  e);
 		System::Void btnSendData_Click(System::Object^  sender, System::EventArgs^  e);
 		System::Void btnAddSensor_Click(System::Object^  sender, System::EventArgs^  e);
@@ -89,19 +95,20 @@ namespace grid_gui {
 		void produceAllow(bool allow);
 		void onReceivedData(System::String ^frameData);
 		void onDataSend(System::String ^data);
+		
 
-		System::Void xbeeBackGroundWorker_DoWork(System::Object^  sender, 
-												 System::ComponentModel::DoWorkEventArgs^  e);
+		System::Void xbeeBackGroundWorker_DoWork(System::Object^  sender,
+			System::ComponentModel::DoWorkEventArgs^  e);
 
 		System::Drawing::Bitmap^ MatToBitmap(const cv::Mat& img);
-		
+
 		bool actualizeSensorData(std::stringstream &frameData);
 		bool findSensorByID(uint64_t id, size_t sensorNr);
 		std::string extractTagMember(const std::string &line);
-		
+
 		void drawMap();
-		
-	
+
+
 	};
 
 }

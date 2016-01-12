@@ -61,6 +61,7 @@ void dialog::SensorDialog::InitializeComponent(void)
 	this->txSensorId->Name = L"txSensorId";
 	this->txSensorId->Size = System::Drawing::Size(219, 67);
 	this->txSensorId->TabIndex = 2;
+	
 	// 
 	// label2
 	// 
@@ -144,7 +145,7 @@ void dialog::SensorDialog::InitializeComponent(void)
 
 System::Void dialog::SensorDialog::btnAddSensor_Click(System::Object^  sender, System::EventArgs^  e)
 {
-	
+
 	//add precaution for "." instead of "," in floating numbers - if there is a "." in text, change it to ","
 	std::vector<std::pair<std::string, double> > meas;
 	SmartSensor sensor(Convert::ToUInt64(txSensorId->Text),
