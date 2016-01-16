@@ -27,9 +27,15 @@ allowDataSend(false)
 
 
 	// COM port initialization
-	port = gcnew SerialPort("COM1");
+	port = gcnew SerialPort("COM2");
 	port->ReadTimeout = 500;
-	port->WriteTimeout - 500;
+	port->WriteTimeout = 500;
+	port->BaudRate = 9600;
+	port->Parity = Parity::None;
+	port->StopBits = StopBits::One;
+	port->DataBits = 8;
+	port->Handshake = Handshake::None;
+	port->RtsEnable = true;
 
 }
 
@@ -359,10 +365,9 @@ System::Void grid_gui::GridGui::xbeeBackGroundWorker_DoWork(System::Object^  sen
 		//if received new frame invoke the onReceivedData() function
 		//for now read the test_frame.xml file to test the data actualization and map drawing
 		//read file to isstringstream
-		
-		if (port->ReadLine() != "")
+		System::String^ receivedData = port->ReadExisting();
+		if (!System::String::IsNullOrEmpty(receivedData))
 		{
-			System::String^ receivedData = port->ReadExisting();
 			this->Invoke(gcnew receivedDataDelegate(this, &grid_gui::GridGui::onReceivedData), receivedData);
 		}
 
