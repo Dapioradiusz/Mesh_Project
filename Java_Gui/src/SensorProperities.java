@@ -41,9 +41,10 @@ public class SensorProperities extends javax.swing.JFrame {
         if(mainGui.smartSensors.size() > 0)
         {
             String sensorNames[] = new String[mainGui.smartSensors.size()];
-            for(int i = 0; i < mainGui.smartSensors.size(); i++)
+            sensorNames[0] = "HUB";
+            for(int i = 1; i < mainGui.smartSensors.size(); i++)
             {
-                sensorNames[i] = "Sensor " + (i + 1);
+                sensorNames[i] = "Sensor " + i;
             }
             cbSensorList.setModel(new DefaultComboBoxModel(sensorNames));
             cbSensorList.setSelectedIndex(0);

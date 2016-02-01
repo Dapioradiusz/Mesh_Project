@@ -42,27 +42,18 @@ public class MeshGui extends javax.swing.JFrame {
     /**
      * Creates new form MeshGui
      */
-    private static final CharSequence MEASURMENTS_START_TAG = "Measurments";
-    private static final CharSequence MEASURMENTS_END_TAG = "Ms_end";
-    private static final CharSequence MEASURMENT_START_TAG = "Measurment";
-    private static final CharSequence MEASURMENT_END_TAG = "M_end";
-    private static final CharSequence NAME_TAG = "name";
-    private static final CharSequence UNIT_TAG = "unit";
-    private static final CharSequence VALUE_TAG = "value";
-    private static final String VALUE_INDICATOR = "'";
     private static final String HUB_64ADRESS = "0013A20040B49A62";
-    private static final double HUB_LAT = 54.0;
-    private static final double HUB_LONG = 14.0;
+    private static final long DISCOVERY_TIMEOUT = 15000;
     
     
     public ArrayList<SmartSensor> smartSensors;
     private boolean workerThreadStarted;
-    private SwingWorker<Void,String> worker;
+    private XbeeWorker worker;
     private ArrayList<String> hubDataToSend;
     private boolean broadcastData;
     private boolean canAddData;
     public boolean connectedToHubModule;
-    private ArrayList<FragmentedMessage> messagesBuffer;
+    public ArrayList<FragmentedMessage> messagesBuffer;
     private Mat sensorMap;
     public boolean sensorSettingsOpen;
     public boolean serialGuiOpen;
@@ -84,15 +75,14 @@ public class MeshGui extends javax.swing.JFrame {
         canAddData = true;
         hubDataToSend = new ArrayList<>();
         smartSensors = new ArrayList<>();
-        Position hubPos = new Position(HUB_LAT, HUB_LONG);
-        smartSensors.add( new SmartSensor(HUB_64ADRESS, hubPos, 1000));
+        smartSensors.add(new SmartSensor(HUB_64ADRESS));
         cbSensorList.addItem("HUB");
         messagesBuffer = new ArrayList<>();
         connectedToHubModule = false;
         serialGuiOpen = false;
         sensorSettingsOpen = false;
         Enumeration ports = CommPortIdentifier.getPortIdentifiers();
-        ArrayList<String> portNames = new ArrayList<String>();
+        ArrayList<String> portNames = new ArrayList<>();
         while(ports.hasMoreElements())
         {
             portNames.add(((CommPortIdentifier)ports.nextElement()).getName());
@@ -109,8 +99,6 @@ public class MeshGui extends javax.swing.JFrame {
             SensorMap sMap = new SensorMap(smartSensors);
             sensorMap = sMap.getMap();
             BufferedImage map = Mat2BufferedImage(sensorMap);
-    //        Image mapImg = map.getScaledInstance(jLMapImage.getWidth(), jLMapImage.getHeight(), 
-    //                                             map.SCALE_SMOOTH);
             ImageIcon icon = new ImageIcon(map);       
             jLMapImage.setIcon(icon);
         }
@@ -163,36 +151,9 @@ public class MeshGui extends javax.swing.JFrame {
             caretPosition = txConnectionLog.getDocument().getLength();
             txConnectionLog.setCaretPosition(caretPosition);
             
-        }
+        }   
+    }
        
-    }
-    
-    private int getSensorNr(String sensorID)
-    {
-        int sensorNr = 0;
-        for(SmartSensor sensor: smartSensors)
-        {
-            if(sensor.getId().contains(sensorID))
-            {
-                return sensorNr;
-            }
-            sensorNr++;
-        }
-        return -1;
-    }
-    
-    public boolean checkIfSensorAdded(String id)
-    {
-        for(SmartSensor sensor : smartSensors)
-        {
-            if(sensor.getId().equals(id))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    
     public void updateSensorComboBox()
     {
         int sensNr = cbSensorList.getItemCount() + 1;
@@ -218,89 +179,16 @@ public class MeshGui extends javax.swing.JFrame {
         txSensorData.setText(text);
     }
     
-    private boolean checkIfRxMsgIsFragment(String rxData)
+     public boolean checkIfSensorAdded(String id)
     {
-        boolean start = rxData.contains(MEASURMENTS_START_TAG);
-        boolean end = rxData.contains(MEASURMENTS_END_TAG);
-        if(start && end)
+        for(SmartSensor sensor : smartSensors)
         {
-            return false;
-        } 
-        return true;
-
-//        if(start && !end)
-//        {
-//            return true;
-//        }
-//        if(!start && end)
-//        {
-//            return true;
-//        }
-    }
-    
-    private String extractTagValue(String data, String tagName, int index)
-    {
-        int value_index = data.indexOf(tagName, index);
-        int value_start = data.indexOf(VALUE_INDICATOR, value_index);
-        int value_end = data.indexOf(VALUE_INDICATOR, (value_start + 1));
-        return data.substring((value_start + 1), value_end);
-    }
-    
-    private boolean extractMsgData(String rxData, String sensorID)
-    {
-        int index = 0;
-        int m_start = rxData.indexOf(MEASURMENT_START_TAG.toString(), index);
-        boolean sensorUpdated = false;
-        int m_end = rxData.indexOf(MEASURMENTS_END_TAG.toString(), index);
-        while(m_start > -1 && m_start < m_end ) //fix in arduino
-        {
-            //get name, value and unit            
-            String name = extractTagValue(rxData, NAME_TAG.toString(), index);           
-            //get value
-            String value = extractTagValue(rxData, VALUE_TAG.toString(), index);
-            double d_value = Double.parseDouble(value);
-            //get unit
-            String unit = extractTagValue(rxData, UNIT_TAG.toString(), index);
-            //find sensor Nr with this ID
-            int sensorNr = getSensorNr(sensorID);
-            if(sensorNr > -1)
+            if(sensor.getId().equals(id))
             {
-                sensorUpdated = true;
-                boolean foundMeasurment = false;
-                for(Measurment meas : smartSensors.get(sensorNr).m_measurments)
-                {
-                    if(meas.name.equals(name))
-                    {
-                        meas.value = d_value;
-                        meas.unit = unit;
-                        foundMeasurment = true;
-                        break;
-                    }
-                }
-                if(!foundMeasurment) // add new measurment
-                {
-                   smartSensors.get(sensorNr).m_measurments.add(new Measurment(name, d_value , unit));
-                   smartSensors.get(sensorNr).hasMeasurements = true;
-                }
+                return true;
             }
-            index = rxData.indexOf(MEASURMENT_END_TAG.toString(), (index + 1));
-            m_start = rxData.indexOf(MEASURMENT_START_TAG.toString(), index);
         }
-        return sensorUpdated;
-    }
-    
-    private int findFragmentedMsgNr(String sensorID)
-    {
-        int msgNr = 0;
-        for(FragmentedMessage msg : messagesBuffer)
-        {
-            if(msg.idCheck(sensorID))
-            {
-                return msgNr;
-            }
-            msgNr++;
-        }
-        return -1;
+        return false;
     }
     /**
      * This method is called from within the constructor to initialize the form.
@@ -542,123 +430,22 @@ public class MeshGui extends javax.swing.JFrame {
         if(!workerThreadStarted)
         {
             try {
-                digiModule.open();
-                (worker = new SwingWorker<Void, String>() 
+                if(!digiModule.isOpen())
                 {
-                    //private count = 0;
-                    @Override
-                    public Void doInBackground() throws InterruptedException, FileNotFoundException, UnsupportedEncodingException, IOException 
-                    {
-                        publish("Started Network Communication");
-                        while(true)
-                        {
-                              //HUB can send commands, later realese maybe has this 
-                              //functionality - sending sleep commands, remote AT
-                            //Commands, and API frames
-//    //                      check if new User Data added to process
-//                            if(!hubDataToSend.isEmpty())
-//                            {
-//                                canAddData = false;
-//                                //check current top element and send it
-//                                //xbee sending operations
-//                                //after finished with current element pop it from data List
-//                                //log data send
-//                                publish("Send Data");
-//                                canAddData = true;
-//                            }
-    //                        check if xbee device received new data
-    //                        if true
-
-                            
-                            XBeeMessage xbeeMessage = digiModule.readData();
-                            
-                            if (xbeeMessage != null)
-                            {
-                                publish("Received Data");
-                                String rxData = new String(xbeeMessage.getData());
-                                String sensorAdress = xbeeMessage.getDevice().get64BitAddress().toString();
-                                publish("From " + xbeeMessage.getDevice().get64BitAddress()
-                                        + " >> "  + rxData);
-                                
-                               //decode the message
-                                if(!checkIfRxMsgIsFragment(rxData))
-                                {
-//                                    //extract data from message
-                                        publish("Received whole message");
-                                        extractMsgData(rxData, sensorAdress);
-                                }
-                                else
-                                {
-                                    
-                                    if(rxData.contains(MEASURMENTS_START_TAG)) // Starts with Measurments\n
-                                    {
-//                                        //create new element in buffer
-                                            publish("Received fragment start message");
-                                            messagesBuffer.add(new FragmentedMessage(sensorAdress, rxData, false));
-                                    }
-                                    else if(!rxData.contains(MEASURMENTS_START_TAG) && !rxData.contains(MEASURMENTS_END_TAG)) //no Measurments\n or Measurments_end\n
-                                   {
-//                                        //append to fragment to existing msg buffer
-//                                        //find message with speciefied ID
-                                            publish("Received fragment middle message");
-                                            int msgNr = findFragmentedMsgNr(sensorAdress);
-                                            if(msgNr > -1)
-                                            {
-                                                messagesBuffer.get(msgNr).appendMessage(rxData);
-                                            }
-                                    }
-                                    else if(rxData.contains(MEASURMENTS_END_TAG))
-                                    {
-//                                        //append it to existing, pop it from buffer
-//                                        // and extract sensor data
-                                            publish("Received fragment end message");
-                                            int msgNr = findFragmentedMsgNr(sensorAdress);
-                                            if(msgNr > -1)
-                                            {
-                                                FragmentedMessage finishedMsg = messagesBuffer.remove(msgNr);
-                                                finishedMsg.finshMessage(rxData);
-                                                extractMsgData(finishedMsg.getMsg(), sensorAdress);
-                                            }
-                                               
-                                    }   
-                                }
-//                                //redraw the map if(updatedSensor)
-//                                if(updatedSensor)
-//                                {
-//                                    //drawMap();
-//                                }
-//                                updatedSensor = false;
-                           }
-                            Thread.sleep(500);
-                            
-                        }
-                    }
-
-                    @Override
-                    public void done() 
-                    {
-                        appendConnectionLog("Finished worker thread");//.
-                    }
-
-                    @Override
-                    public void process(List<String> data)
-                    {
-                        for(String text : data)
-                        {
-                            appendConnectionLog(text);
-                        }     
-                    }
-                }).execute();
+                    digiModule.open();
+                }
+                worker = new XbeeWorker(this);
+                worker.execute();
                 workerThreadStarted = true;
             } catch (XBeeException ex) {
-                Logger.getLogger(MeshGui.class.getName()).log(Level.SEVERE, null, ex);
-                
+                Logger.getLogger(MeshGui.class.getName()).log(Level.SEVERE, null, ex);               
             }
        }
         else
         {
             //stop read write xbee operations
             worker.cancel(true);
+            digiModule.close();
             workerThreadStarted = false;
         }
     }//GEN-LAST:event_btnStartReadWriteActionPerformed
@@ -673,7 +460,7 @@ public class MeshGui extends javax.swing.JFrame {
                 digiModule.open();			
                 XBeeNetwork digiNetwork = digiModule.getNetwork();
 
-                digiNetwork.setDiscoveryTimeout(15000);
+                digiNetwork.setDiscoveryTimeout(DISCOVERY_TIMEOUT);
 
                 digiNetwork.addDiscoveryListener(new DigiMeshDiscoveryListener(this));
 
